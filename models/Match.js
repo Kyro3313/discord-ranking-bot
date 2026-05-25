@@ -5,6 +5,11 @@ module.exports = (sequelize, DataTypes) => {
       primaryKey: true,
       autoIncrement: true
     },
+    matchType: {
+      type: DataTypes.ENUM,
+      values: ['2p', '3p', '4p'],
+      allowNull: false
+    },
     durationInMinutes: {
       type: DataTypes.INTEGER, 
       allowNull: false

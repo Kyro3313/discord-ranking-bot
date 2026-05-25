@@ -27,8 +27,18 @@ module.exports = {
 
             const duration = interaction.options.getInteger('duration') || 0;
 
+            // Determine match type 
+            let matchType;
+            const totalPlayers = 1 + losers.length;
+            if (totalPlayers === 2) {
+                matchType = '2p';
+            } else if (totalPlayers === 3) {
+                matchType = '3p';
+            } else if (totalPlayers === 4) {
+                matchType = '4p';
+            }
 
-            const [winnerPlayer] = await Player.findOrCreate({ where: { discordId: winner.id, username: winner.username} })
+            const [winnerPlayer] = await Player.findOrCreate({ where: { discordId: winner.id }, defaults: { username: winner.username } });
             const loserPlayers = [];
             for (const loser of losers) {
                 const [loserPlayer] = await Player.findOrCreate({
@@ -37,25 +47,51 @@ module.exports = {
                 });
                 loserPlayers.push(loserPlayer);
             }
+
+            // Save stats before updating, to display them later
+            const previousStats = [];
+            previousStats.push(winnerPlayer.getWinRate(matchType));
+            loserPlayers.forEach(player => previousStats.push(player.getWinRate(matchType)));
+
+            // Update stats
+            await winnerPlayer.increment(['matchesPlayedTotal', 'matchesWonTotal', `matchesPlayed${matchType}`, `matchesWon${matchType}`]);
+            
+            for (const loserPlayer of loserPlayers) {
+                await loserPlayer.increment(['matchesPlayedTotal', `matchesPlayed${matchType}`]);
+            }
+
+            // Reload players to get updated stats from the database
+            await winnerPlayer.reload();
+            for (const loserPlayer of loserPlayers) {
+                await loserPlayer.reload();
+            }
         
             const match = await Match.create({
                 winnerId: winnerPlayer.discordId,
-                durationInMinutes: duration
+                durationInMinutes: duration,
+                matchType: matchType
             });
+            
+            await match.setPlayers([winnerPlayer, ...loserPlayers]); 
 
-            const allPlayers = [winnerPlayer, ...loserPlayers];
-            await match.setPlayers(allPlayers); 
-
-            const newElos = Array(29).fill(5); 
-
-            let message = `🥇 \`${winnerPlayer.username}\`: ${4} → ${newElos[0]} (${newElos[0] - 4 > 0 ? '+' : ''}${newElos[0] - 4})\n`;
-            for (let i = 0; i < loserPlayers.length; i++) {
-                message += `☠️ \`${loserPlayers[i].username}\`: ${4} → ${newElos[i + 1]} (${newElos[i + 1] - 4 > 0 ? '+' : ''}${newElos[i + 1] - 4})\n`;
+            // Create the message
+            let message = '';
+            for (let i = 0; i < totalPlayers; i++) {
+                const player = (i === 0) ? winnerPlayer : loserPlayers[i - 1];
+                const currentWinRate = player.getWinRate(matchType);
+                if (i === 0){
+                    message = `🥇 \`${player.username}\`: ${previousStats[i]}% → ${currentWinRate}%\n`;
+                } else { 
+                    message += `☠️ \`${player.username}\`: ${previousStats[i]}% → ${currentWinRate}%\n`;
+                }
             }
 
             const embed = new EmbedBuilder().setColor('#1e8bff').setTitle('Match Recorded!')
                 .addFields({ name: 'Player Ratings', value: message })
-                // .setFooter({ text: 'ELO changes calculated.' });
+
+            if(duration !== 0){
+                embed.setFooter({ text: `The match was ${duration} minutes long.` })
+            }
 
             await interaction.editReply({ embeds: [embed] });
 

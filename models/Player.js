@@ -30,5 +30,19 @@ module.exports = (sequelize, DataTypes) => {
   }, {
     timestamps: true
   });
+
+  // Instance method to calculate win rate
+  Player.prototype.getWinRate = function(matchType = 'Total') {
+    const playedKey = `matchesPlayed${matchType}`;
+    const wonKey = `matchesWon${matchType}`;
+
+    const played = this.getDataValue(playedKey);
+    const won = this.getDataValue(wonKey);
+
+    if (played === 0) {
+      return 0;
+    }
+    return Math.round((won / played) * 100);
+  };
   return Player;
 };
