@@ -3,8 +3,6 @@ const { clientId, guildId, token } = require('./config.json');
 
 const rest = new REST().setToken(token);
 
-// ...
-
 // for guild-based commands
 rest
 	.put(Routes.applicationGuildCommands(clientId, guildId), { body: [] })

@@ -1,6 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const { Users, Matches } = require('../../dbObjects.js');
-const sequelize = require('sequelize');
+const { Player, Match } = require('../../dbObjects.js');
 
 module.exports = {
 	data: new SlashCommandBuilder().setName('display-profile').
@@ -14,20 +13,19 @@ module.exports = {
 
         try {
 
-            // User is the discord.js user object, player is the row from the DB
             const user = interaction.options.getUser('user')
-            const player = await Users.findOne({ where: { userId: user.id, username: user.username} });
+            const player = await Player.findOne({ where: { discordId: user.id, username: user.username} });
 
             if (!player) {
-                return interaction.editReply("This user is not in the database yet!");
+                return interaction.editReply("This user has never played any games!");
             }
 
 
-            // Find the user's rank
-            const allPlayers = await Users.findAll({
-                order: [['currentElo', 'DESC']]
+            // This could probably be optimized
+            const allPlayers = await Player.findAll({
+                order: [['matchesWonTotal', 'DESC']]
             });
-            const leaderboardRanking = allPlayers.findIndex(u => u.userId === player.userId) + 1;
+            const leaderboardRanking = allPlayers.findIndex(u => u.discordId === user.id) + 1;
 
             // Add Emoji if the player is in the top 3
             let leaderboardRankingDisplayed = ""
@@ -49,20 +47,22 @@ module.exports = {
                 default:
                     leaderboardRankingDisplayed = `${leaderboardRanking}.`;
             }
-            console.log(player.wins / player.matchesPlayed)
-            const winRate = Math.round(player.wins / player.matchesPlayed * 100);
-            const gamesPlayed = player.matchesPlayed;
 
             const playerEmbed = new EmbedBuilder()
                 .setTitle(`${leaderboardRankingDisplayed} ${player.username}`)
                 .setColor(embedColor)
                 .setThumbnail(`https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}`)
                 .addFields(
-                { name: 'Current Elo:', value: `**${player.currentElo}**`, inline: true },
+                { name: 'Total Winrate:', value: `**${player.getWinRate()}%**`, inline: true },
+                { name: 'Games Played', value: `${player.matchesPlayedTotal}`, inline: true },
+                { name: 'Bio', value: `${player.bio}`, inline: true },
+                { name: 'Winrate (2p):', value: `**${player.getWinRate('2p')}%**`, inline: true },
+                { name: 'Winrate (3p):', value: `**${player.getWinRate('3p')}%**`, inline: true },
+                { name: 'Winrate (4p):', value: `**${player.getWinRate('4p')}%**`, inline: true },
                 // { name: 'Leaderboard', value: '1', inline: true },
                 // { name: '\u200B', value: '\u200B' },
-                { name: 'Win Rate', value: `${winRate}%`, inline: true },
-                { name: 'Games Played', value: `${gamesPlayed}`, inline: true },
+                
+                
 	            )           
                 .setFooter({ text: 'Brought to you by John Arcana' })
 

@@ -13,7 +13,7 @@ module.exports = (sequelize, DataTypes) => {
 
     bio: {
       type: DataTypes.TEXT,
-      defaultValue: "No description set."
+      defaultValue: "Set a description with \`\\setbio\`!"
     },
 
     matchesPlayedTotal: { type: DataTypes.INTEGER, defaultValue: 0 },
