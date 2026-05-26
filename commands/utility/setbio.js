@@ -6,7 +6,8 @@ module.exports = {
 		.setName('setbio')
 		.setDescription('Set your profile biography, creates a profile if you don\'t have one.')
 		.addStringOption(option => 
-            option.setName('bio')
+            option
+                .setName('bio')
                 .setDescription('Your new bio (max 200 characters)')
                 .setRequired(true)
                 .setMaxLength(200)

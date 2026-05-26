@@ -1,10 +1,12 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { Player, Match } = require('../../dbObjects.js');
+const { Op } = require('sequelize');
 
 module.exports = {
-	data: new SlashCommandBuilder().setName('display-profile').
-              setDescription('Display the stats of a player.')
-              .addUserOption(option => option.setName('user').setDescription('Player to display').setRequired(true)),
+	data: new SlashCommandBuilder()
+        .setName('display-profile')
+        .setDescription('Display the stats of a player.')
+        .addUserOption(option => option.setName('user').setDescription('Player to display').setRequired(true)),
 
 	async execute(interaction) {
 
@@ -20,13 +22,33 @@ module.exports = {
                 return interaction.editReply("This user has never played any games!");
             }
 
-
             // This could probably be optimized
+            
+            // Get the ranking of the player based on total winrate
             const allPlayers = await Player.findAll({
-                order: [['matchesWonTotal', 'DESC']]
-            });
-            const leaderboardRanking = allPlayers.findIndex(u => u.discordId === user.id) + 1;
-
+                            where:{
+                                matchesPlayedTotal: { [Op.gte]: 10 }
+                            }
+                        });
+            
+                        allPlayers.sort((a, b) => {
+                            const winRateA = a.getWinRate();
+                            const winRateB = b.getWinRate();
+                            if (winRateA === winRateB) {
+                                return b[`matchesPlayedTotal`] - a[`matchesPlayedTotal`];
+                            }
+                            return winRateB - winRateA;
+                        });
+            
+            const index = allPlayers.findIndex(u => u.discordId === user.id);
+            let leaderboardRanking = ''
+            if(index === -1){
+                leaderboardRanking = "\`unranked\`";
+            } else{
+                leaderboardRanking = allPlayers.findIndex(u => u.discordId === user.id) + 1;
+            }
+            
+            
             // Add Emoji if the player is in the top 3
             let leaderboardRankingDisplayed = ""
             let embedColor = "#57aaee"
@@ -43,6 +65,9 @@ module.exports = {
                 case 3:
                     leaderboardRankingDisplayed = "🥉";
                     embedColor = "#fe8b42";
+                    break
+                case "\`unranked\`":
+                    leaderboardRankingDisplayed = "\`unranked\`";
                     break
                 default:
                     leaderboardRankingDisplayed = `${leaderboardRanking}.`;
