@@ -16,7 +16,7 @@ module.exports = {
         try {
 
             const user = interaction.options.getUser('user')
-            const player = await Player.findOne({ where: { discordId: user.id, username: user.username} });
+            const player = await Player.findOne({ where: { discordId: user.id, serverId: interaction.guildId } });
 
             if (!player) {
                 return interaction.editReply("This user has never played any games!");
@@ -27,7 +27,8 @@ module.exports = {
             // Get the ranking of the player based on total winrate
             const allPlayers = await Player.findAll({
                             where:{
-                                matchesPlayedTotal: { [Op.gte]: 10 }
+                                matchesPlayedTotal: { [Op.gte]: 10 },
+                                serverId: interaction.guildId
                             }
                         });
             
@@ -51,7 +52,7 @@ module.exports = {
             
             // Add Emoji if the player is in the top 3
             let leaderboardRankingDisplayed = ""
-            let embedColor = "#57aaee"
+            let embedColor = "#5965ee"
 
             switch(leaderboardRanking){
                 case 1:
@@ -68,6 +69,7 @@ module.exports = {
                     break
                 case "\`unranked\`":
                     leaderboardRankingDisplayed = "\`unranked\`";
+                    embedColor = "#949494";
                     break
                 default:
                     leaderboardRankingDisplayed = `${leaderboardRanking}.`;

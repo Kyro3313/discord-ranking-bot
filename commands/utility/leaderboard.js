@@ -31,7 +31,8 @@ module.exports = {
             // Fetch all players
             const allPlayers = await Player.findAll({
                 where:{
-                    matchesPlayedTotal: { [Op.gte]: 10 }
+                    matchesPlayedTotal: { [Op.gte]: 10 },
+                    serverId: interaction.guildId
                 }
             });
 

@@ -23,8 +23,8 @@ module.exports = {
 
 		try {
 			const [player] = await Player.findOrCreate({
-				where: { discordId: interaction.user.id },
-				defaults: { username: interaction.user.username }
+				where: { discordId: interaction.user.id, serverId: interaction.guildId },
+				defaults: { username: interaction.user.username, serverId: interaction.guildId }
 			});
 
 			player.bio = newBio;

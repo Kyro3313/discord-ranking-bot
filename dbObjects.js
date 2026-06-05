@@ -16,13 +16,17 @@ const UserMatch = sequelize.define('UserMatch', {
     type: DataTypes.INTEGER,
     primaryKey: true,
     autoIncrement: true
+  },
+  serverId: {
+    type: DataTypes.STRING,
+    allowNull: false
   }
 }, { 
   timestamps: false
 });
 
 // Many-to-Many
-Player.belongsToMany(Match, { through: UserMatch, foreignKey: 'discordId' });
+Player.belongsToMany(Match, { through: UserMatch, foreignKey: 'playerId' });
 Match.belongsToMany(Player, { through: UserMatch, foreignKey: 'matchId' });
 
 // One-to-Many

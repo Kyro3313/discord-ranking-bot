@@ -1,10 +1,18 @@
 module.exports = (sequelize, DataTypes) => {
 
   const Player = sequelize.define('Player', {
+    id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true,
+    },
     discordId: {
       type: DataTypes.STRING,
-      primaryKey: true,
       allowNull: false
+    },
+    serverId: {
+      type: DataTypes.STRING,
+      allowNull: false,
     },
     username: {
       type: DataTypes.STRING,
@@ -28,7 +36,13 @@ module.exports = (sequelize, DataTypes) => {
     matchesPlayed4p: { type: DataTypes.INTEGER, defaultValue: 0 },
     matchesWon4p: { type: DataTypes.INTEGER, defaultValue: 0 },
   }, {
-    timestamps: true
+    timestamps: true,
+    indexes: [
+      {
+        unique: true,
+        fields: ['discordId', 'serverId']
+      }
+    ]
   });
 
   // Instance method to calculate win rate

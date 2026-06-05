@@ -38,12 +38,15 @@ module.exports = {
                 matchType = '4p';
             }
 
-            const [winnerPlayer] = await Player.findOrCreate({ where: { discordId: winner.id }, defaults: { username: winner.username } });
+            const [winnerPlayer] = await Player.findOrCreate({ 
+                where: { discordId: winner.id, serverId: interaction.guildId }, 
+                defaults: { username: winner.username, serverId: interaction.guildId } 
+            });
             const loserPlayers = [];
             for (const loser of losers) {
                 const [loserPlayer] = await Player.findOrCreate({
-                    where: { discordId: loser.id },
-                    defaults: { username: loser.username }
+                    where: { discordId: loser.id, serverId: interaction.guildId },
+                    defaults: { username: loser.username, serverId: interaction.guildId }
                 });
                 loserPlayers.push(loserPlayer);
             }
@@ -67,12 +70,13 @@ module.exports = {
             }
         
             const match = await Match.create({
-                winnerId: winnerPlayer.discordId,
+                winnerId: winnerPlayer.id,
                 durationInMinutes: duration,
-                matchType: matchType
+                matchType: matchType,
+                serverId: interaction.guildId
             });
             
-            await match.setPlayers([winnerPlayer, ...loserPlayers]); 
+            await match.setPlayers([winnerPlayer, ...loserPlayers], { through: { serverId: interaction.guildId } }); 
 
             // Create the message
             let message = '';
@@ -80,13 +84,15 @@ module.exports = {
                 const player = (i === 0) ? winnerPlayer : loserPlayers[i - 1];
                 const currentWinRate = player.getWinRate(matchType);
                 if (i === 0){
-                    message = `🥇 \`${player.username}\`: ${previousStats[i]}% → ${currentWinRate}%\n`;
+                    message = `🥇 \`${player.username}\` ${previousStats[i]}% → ${currentWinRate}%\n`;
                 } else { 
-                    message += `☠️ \`${player.username}\`: ${previousStats[i]}% → ${currentWinRate}%\n`;
+                    message += `☠️ \`${player.username}\` ${previousStats[i]}% → ${currentWinRate}%\n`;
                 }
             }
 
-            const embed = new EmbedBuilder().setColor('#1e8bff').setTitle('Match Recorded!')
+
+
+            const embed = new EmbedBuilder().setColor('#47a166').setTitle(`Match Recorded: ${matchType}`)
                 .addFields({ name: 'Player Ratings', value: message })
 
             if(duration !== 0){

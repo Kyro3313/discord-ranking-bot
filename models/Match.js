@@ -19,13 +19,17 @@ module.exports = (sequelize, DataTypes) => {
       defaultValue: DataTypes.NOW
     },
     winnerId: {
-      type: DataTypes.STRING,
+      type: DataTypes.INTEGER,
       allowNull: false,
       references: {
         model: 'Players',
-        key: 'discordId'
+        key: 'id'
       }
-    }
+    },
+    serverId: {
+      type: DataTypes.STRING,
+      allowNull: false
+    },
   });
   return Match;
 };
