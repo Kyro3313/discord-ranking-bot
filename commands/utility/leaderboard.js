@@ -64,7 +64,7 @@ module.exports = {
             for (let i = 0; i < topPlayers.length; i++) {
                 const player = topPlayers[i];
 
-                leaderboardText += `**${i + 1}.** \`${player.username}\`: ${player.getWinRate(matchType)}% Winrate\n`;
+                leaderboardText += `**${i + 1}.** **${player.username}**: ${player.getWinRate(matchType)}% Winrate\n`;
             }
 
             leaderboardEmbed.setDescription(leaderboardText);

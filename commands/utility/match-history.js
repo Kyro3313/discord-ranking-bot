@@ -42,7 +42,7 @@ module.exports = {
                     winCount++;
                 }
 				
-				const opponents = match.Players.filter(p => p.discordId !== player.discordId).map(p => `\`${p.username}\``);
+				const opponents = match.Players.filter(p => p.discordId !== player.discordId).map(p => `**${p.username}**`);
 				const opponentsText = opponents.length > 0 ? `vs ${opponents.join(', ')}` : 'vs Unknown';
 
 				// Format date using Discord relative timestamp

@@ -84,9 +84,9 @@ module.exports = {
                 const player = (i === 0) ? winnerPlayer : loserPlayers[i - 1];
                 const currentWinRate = player.getWinRate(matchType);
                 if (i === 0){
-                    message = `🥇 \`${player.username}\` ${previousStats[i]}% → ${currentWinRate}%\n`;
+                    message = `🥇 **${player.username}**: ${previousStats[i]}% → ${currentWinRate}%\n`;
                 } else { 
-                    message += `☠️ \`${player.username}\` ${previousStats[i]}% → ${currentWinRate}%\n`;
+                    message += `☠️ **${player.username}**: ${previousStats[i]}% → ${currentWinRate}%\n`;
                 }
             }
 
