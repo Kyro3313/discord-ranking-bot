@@ -33,22 +33,15 @@ module.exports = {
                         });
             
                         allPlayers.sort((a, b) => {
-                            const winRateA = a.getWinRate();
-                            const winRateB = b.getWinRate();
-                            if (winRateA === winRateB) {
+                            const eloA = a.currentElo;
+                            const eloB = b.currentElo;
+                            if (eloA === eloB) {
                                 return b[`matchesPlayedTotal`] - a[`matchesPlayedTotal`];
                             }
-                            return winRateB - winRateA;
+                            return eloB - eloA;
                         });
             
-            const index = allPlayers.findIndex(u => u.discordId === user.id);
-            let leaderboardRanking = ''
-            if(index === -1){
-                leaderboardRanking = "\`unranked\`";
-            } else{
-                leaderboardRanking = allPlayers.findIndex(u => u.discordId === user.id) + 1;
-            }
-            
+            const leaderboardRanking = allPlayers.findIndex(u => u.discordId === user.id) + 1;          
             
             // Add Emoji if the player is in the top 3
             let leaderboardRankingDisplayed = ""
@@ -67,31 +60,86 @@ module.exports = {
                     leaderboardRankingDisplayed = "🥉";
                     embedColor = "#fe8b42";
                     break
-                case "\`unranked\`":
-                    leaderboardRankingDisplayed = "\`unranked\`";
+                // If unranked the index is (-1 + 1) = 0
+                case 0:
+                    leaderboardRankingDisplayed = "";
                     embedColor = "#949494";
                     break
                 default:
-                    leaderboardRankingDisplayed = `${leaderboardRanking}.`;
+                    leaderboardRankingDisplayed = `${leaderboardRanking}#`;
             }
+
+            const matches = await player.getMatches({
+                order: [['date', 'DESC']],
+                limit: 4,
+                include: [
+                    { model: Player } 
+                ]
+            });
+
+            let recentMatchesText = '';
+            if (matches && matches.length > 0) {
+                matches.forEach((match) => {
+                    const isWinner = match.winnerId === player.id;
+                    const result = isWinner ? '🥇 **Won**' : '☠️ **Lost**';
+                    const opponents = match.Players.filter(p => p.discordId !== player.discordId).map(p => `${p.username}`);
+                    const opponentsText = opponents.length > 0 ? `vs ${opponents.join(', ')}` : 'vs Unknown';
+                    recentMatchesText += `${result} ${opponentsText}\n`;
+                });
+            } else {
+                recentMatchesText = 'No recent matches.';
+            }
+
+            // Calculate streaks
+            const allMatches = await player.getMatches({
+                order: [['date', 'ASC']]
+            });
+
+            let currentWinStreak = 0;
+            let maxWinStreak = 0;
+            let currentLossStreak = 0;
+            let maxLossStreak = 0;
+
+            allMatches.forEach(match => {
+                if (match.winnerId === player.id) {
+                    currentWinStreak++;
+                    currentLossStreak = 0;
+                    if (currentWinStreak > maxWinStreak) maxWinStreak = currentWinStreak;
+                } else {
+                    currentLossStreak++;
+                    currentWinStreak = 0;
+                    if (currentLossStreak > maxLossStreak) maxLossStreak = currentLossStreak;
+                }
+            });
 
             const playerEmbed = new EmbedBuilder()
                 .setTitle(`${leaderboardRankingDisplayed} ${player.username}`)
                 .setColor(embedColor)
                 .setThumbnail(`https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}`)
+                .setDescription(`${player.bio}`)    
                 .addFields(
-                { name: 'Total Winrate:', value: `**${player.getWinRate()}%**`, inline: true },
+                { name: 'Current Elo', value: `**${player.currentElo}**`, inline: true },
                 { name: 'Games Played', value: `${player.matchesPlayedTotal}`, inline: true },
-                { name: 'Bio', value: `${player.bio}`, inline: true },
-                { name: 'Winrate (2p):', value: `**${player.getWinRate('2p')}%**`, inline: true },
-                { name: 'Winrate (3p):', value: `**${player.getWinRate('3p')}%**`, inline: true },
-                { name: 'Winrate (4p):', value: `**${player.getWinRate('4p')}%**`, inline: true },
-                // { name: 'Leaderboard', value: '1', inline: true },
-                // { name: '\u200B', value: '\u200B' },
-                
-                
-	            )           
-                .setFooter({ text: 'Brought to you by John Arcana' })
+                { name: 'Max/Min Elo', value: `Peak: ${player.bestElo}\nLowest: ${player.worstElo}`, inline: true },
+	            )    
+                .addFields(
+                { name: 'Win Rate', value: `Total: ${player.getWinRate()}%
+                    2p: ${player.getWinRate('2p')}%
+                    3p: ${player.getWinRate('3p')}%
+                    4p: ${player.getWinRate('4p')}%`, inline: true },
+                // Blank field for spacing
+                { name: '\u200b', value: '\u200b', inline: true },
+                { name: 'Recent Matches', value: recentMatchesText, inline: true },
+
+	            )   
+                .addFields(
+                { name: 'Win Streak', value: `🔥 Current: ${player.currentWinStreak}\n🏆 Best: ${player.maxWinStreak}\n`, inline: true},
+                { name: 'Loss Streak', value: `🧊 Current: ${player.currentLossStreak}\n❌ Worst: ${player.maxLossStreak}\n`, inline: true},
+	            )            
+
+            if(leaderboardRanking === 0){
+                playerEmbed.setFooter({text: `You are \`unranked\`.\n Play ${10 - player.matchesPlayedTotal} more matches to appear in the leaderboard.`})
+            }
 
             await interaction.editReply({ embeds: [playerEmbed] });
         } catch (error) {

@@ -20,6 +20,14 @@ const UserMatch = sequelize.define('UserMatch', {
   serverId: {
     type: DataTypes.STRING,
     allowNull: false
+  },
+  eloBefore: {
+    type: DataTypes.INTEGER,
+    allowNull: true
+  },
+  eloAfter: {
+    type: DataTypes.INTEGER,
+    allowNull: true
   }
 }, { 
   timestamps: false

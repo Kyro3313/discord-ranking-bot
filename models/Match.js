@@ -10,10 +10,6 @@ module.exports = (sequelize, DataTypes) => {
       values: ['2p', '3p', '4p'],
       allowNull: false
     },
-    durationInMinutes: {
-      type: DataTypes.INTEGER, 
-      allowNull: false
-    },
     date: {
       type: DataTypes.DATE,
       defaultValue: DataTypes.NOW

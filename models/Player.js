@@ -18,11 +18,12 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.STRING,
       allowNull: false
     },
-
     bio: {
       type: DataTypes.TEXT,
       defaultValue: "Set a description with \`\\setbio\` !"
     },
+
+    // Information regarding the matches and other game-related statistics
 
     matchesPlayedTotal: { type: DataTypes.INTEGER, defaultValue: 0 },
     matchesWonTotal: { type: DataTypes.INTEGER, defaultValue: 0 },
@@ -35,6 +36,17 @@ module.exports = (sequelize, DataTypes) => {
 
     matchesPlayed4p: { type: DataTypes.INTEGER, defaultValue: 0 },
     matchesWon4p: { type: DataTypes.INTEGER, defaultValue: 0 },
+
+    currentWinStreak: { type: DataTypes.INTEGER, defaultValue: 0 },
+    maxWinStreak: { type: DataTypes.INTEGER, defaultValue: 0 },
+    
+    currentLossStreak: { type: DataTypes.INTEGER, defaultValue: 0 },
+    maxLossStreak: { type: DataTypes.INTEGER, defaultValue: 0 },
+
+    currentElo: { type: DataTypes.INTEGER, defaultValue: 1500 },
+    bestElo: { type: DataTypes.INTEGER, defaultValue: 1500 },
+    worstElo: { type: DataTypes.INTEGER, defaultValue: 1500 },
+
   }, {
     timestamps: true,
     indexes: [

@@ -35,15 +35,14 @@ module.exports = {
                     serverId: interaction.guildId
                 }
             });
-
+                
             allPlayers.sort((a, b) => {
-                const winRateA = a.getWinRate(matchType);
-                const winRateB = b.getWinRate(matchType);
-                if (winRateA === winRateB) {
-                    //Tiebreaker
-                    return b[`matchesPlayedTotal`] - a[`matchesPlayedTotal`];
-                }
-                return winRateB - winRateA;
+                            const eloA = a.currentElo;
+                            const eloB = b.currentElo;
+                            if (eloA === eloB) {
+                                return b[`matchesPlayedTotal`] - a[`matchesPlayedTotal`];
+                            }
+                            return eloB - eloA;
             });
 
             const topPlayers = allPlayers.slice(0, 10);
