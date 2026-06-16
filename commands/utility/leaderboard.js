@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, escapeMarkdown } = require('discord.js');
 const { Player, Match } = require('../../dbObjects.js');
 const { Op } = require('sequelize');
 
@@ -6,18 +6,7 @@ const { Op } = require('sequelize');
 module.exports = {
 	data: new SlashCommandBuilder()
         .setName('leaderboard')
-        .setDescription('Display a the leaderboard of the specified type of match. defaults to \"all\"')
-        .addStringOption((option) =>
-            option
-                .setName('category')
-                .setDescription('The gif category')
-                .setRequired(false)
-                .addChoices(
-                    { name: 'all', value: 'Total' },
-                    { name: '2p', value: '2p' },
-                    { name: '3p', value: '3p' },
-                    { name: '4p', value: '4p' },
-                )),
+        .setDescription('Display the 10 best players'),
 
 	async execute(interaction) {
 
@@ -25,8 +14,6 @@ module.exports = {
         await interaction.deferReply();
 
         try {
-
-            const matchType = interaction.options.getString('category') || 'Total';
 
             // Fetch all players
             const allPlayers = await Player.findAll({
@@ -51,7 +38,7 @@ module.exports = {
                 return interaction.editReply('The leaderboard is currently empty. Go play some matches!');
             }
 
-            const title = `Leaderboard (${matchType !== 'Total' ? matchType : 'All'})`
+            const title = `🏆 Leaderboard`
 
             const leaderboardEmbed = new EmbedBuilder()
                 .setTitle(title)
@@ -62,8 +49,7 @@ module.exports = {
             let leaderboardText = '';
             for (let i = 0; i < topPlayers.length; i++) {
                 const player = topPlayers[i];
-
-                leaderboardText += `**${i + 1}.** **${player.username}**: ${player.getWinRate(matchType)}% Winrate\n`;
+                leaderboardText += `**${i + 1}.** **${escapeMarkdown(player.username)}**: ${player.currentElo} Elo\n`;
             }
 
             leaderboardEmbed.setDescription(leaderboardText);

@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, escapeMarkdown } = require('discord.js');
 const { Player, Match } = require('../../dbObjects.js');
 const { Op } = require('sequelize');
 
@@ -82,7 +82,7 @@ module.exports = {
                 matches.forEach((match) => {
                     const isWinner = match.winnerId === player.id;
                     const result = isWinner ? '🥇 **Won**' : '☠️ **Lost**';
-                    const opponents = match.Players.filter(p => p.discordId !== player.discordId).map(p => `${p.username}`);
+                    const opponents = match.Players.filter(p => p.discordId !== player.discordId).map(p => `${escapeMarkdown(p.username)}`);
                     const opponentsText = opponents.length > 0 ? `vs ${opponents.join(', ')}` : 'vs Unknown';
                     recentMatchesText += `${result} ${opponentsText}\n`;
                 });
@@ -113,7 +113,7 @@ module.exports = {
             });
 
             const playerEmbed = new EmbedBuilder()
-                .setTitle(`${leaderboardRankingDisplayed} ${player.username}`)
+                .setTitle(`${leaderboardRankingDisplayed} ${escapeMarkdown(player.username)}`)
                 .setColor(embedColor)
                 .setThumbnail(`https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}`)
                 .setDescription(`${player.bio}`)    
@@ -123,10 +123,7 @@ module.exports = {
                 { name: 'Max/Min Elo', value: `Peak: ${player.bestElo}\nLowest: ${player.worstElo}`, inline: true },
 	            )    
                 .addFields(
-                { name: 'Win Rate', value: `Total: ${player.getWinRate()}%
-                    2p: ${player.getWinRate('2p')}%
-                    3p: ${player.getWinRate('3p')}%
-                    4p: ${player.getWinRate('4p')}%`, inline: true },
+                { name: 'Win Rate', value: `Total: ${player.getWinRate()}%\n2p: ${player.getWinRate('2p')}%\n3p: ${player.getWinRate('3p')}%\n4p: ${player.getWinRate('4p')}%`, inline: true },
                 // Blank field for spacing
                 { name: '\u200b', value: '\u200b', inline: true },
                 { name: 'Recent Matches', value: recentMatchesText, inline: true },

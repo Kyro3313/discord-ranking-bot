@@ -1,6 +1,4 @@
 const { Events,Collection, MessageFlags } = require('discord.js');
-// To add the log of a command
-const { logCommand } = require('../services/logCommand.js');
 
 module.exports = {
 	name: Events.InteractionCreate,

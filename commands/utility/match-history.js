@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, escapeMarkdown } = require('discord.js');
 const { Player, Match } = require('../../dbObjects.js');
 
 module.exports = {
@@ -15,7 +15,7 @@ module.exports = {
 			const player = await Player.findOne({ where: { discordId: user.id, serverId: interaction.guildId } });
 
 			if (!player) {
-				return interaction.editReply(`${user.username} has never played any matches!`);
+				return interaction.editReply(`${escapeMarkdown(user.username)} has never played any matches!`);
 			}
 
 			// Get the last 10 matches for this player
@@ -29,7 +29,7 @@ module.exports = {
 			});
 
 			if (!matches || matches.length === 0) {
-				return interaction.editReply(`${user.username} has no recorded matches.`);
+				return interaction.editReply(`${escapeMarkdown(user.username)} has no recorded matches.`);
 			}
 
 			let historyText = '';
@@ -42,7 +42,7 @@ module.exports = {
                     winCount++;
                 }
 				
-				const opponents = match.Players.filter(p => p.discordId !== player.discordId).map(p => `**${p.username}**`);
+				const opponents = match.Players.filter(p => p.discordId !== player.discordId).map(p => `**${escapeMarkdown(p.username)}**`);
 				const opponentsText = opponents.length > 0 ? `vs ${opponents.join(', ')}` : 'vs Unknown';
 
 				// Format date using Discord relative timestamp
@@ -52,7 +52,7 @@ module.exports = {
 			});
 
             const embed = new EmbedBuilder()
-				.setTitle(`${user.username}'s Match History`)
+				.setTitle(`${escapeMarkdown(player.username)}'s Match History`)
 				.setColor('#5965ee')
                 .setDescription(historyText)
 				.setThumbnail(user.displayAvatarURL())

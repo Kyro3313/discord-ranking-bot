@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, escapeMarkdown } = require('discord.js');
 const { Player, Match } = require('../../dbObjects.js');
 const { calculateElo } = require('../../services/calculateElo.js');
 
@@ -159,7 +159,7 @@ module.exports = {
                 else if (eloRecord.place === 2) emoji = '🥈';
                 else if (eloRecord.place === 3) emoji = '🥉';
 
-                message += `${emoji} **${player.username}**: ${eloRecord.eloPre} → ${eloRecord.eloPost} (${sign}${eloRecord.eloChange})\n`;
+                message += `${emoji} **${escapeMarkdown(player.username)}**: ${eloRecord.eloPre} → ${eloRecord.eloPost} (${sign}${eloRecord.eloChange})\n`;
             }
 
             const embed = new EmbedBuilder().setColor('#47a166').setTitle(`Match Recorded: ${matchType}`)

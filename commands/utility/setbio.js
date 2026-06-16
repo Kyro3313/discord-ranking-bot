@@ -8,17 +8,17 @@ module.exports = {
 		.addStringOption(option => 
             option
                 .setName('bio')
-                .setDescription('Your new bio (max 200 characters)')
+                .setDescription('Your new bio (max 300 characters)')
                 .setRequired(true)
-                .setMaxLength(200)
+                .setMaxLength(300)
                 .setMinLength(1)),
                 
 
 	async execute(interaction) {
 		const newBio = interaction.options.getString('bio').trim();
 
-        if (newBio.length > 200){
-            return interaction.reply({ content: 'Your bio cannot exceed 200 characters.', flags: MessageFlags.Ephemeral  });
+        if (newBio.length > 300){
+            return interaction.reply({ content: 'Your bio cannot exceed 300 characters.', flags: MessageFlags.Ephemeral  });
         }
 
 		try {
