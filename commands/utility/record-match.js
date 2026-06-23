@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, escapeMarkdown } = require('discord.js');
-const { Player, Match } = require('../../dbObjects.js');
+const { sequelize, Player, Match } = require('../../dbObjects.js');
 const { calculateElo } = require('../../services/calculateElo.js');
 
 module.exports = {
@@ -14,9 +14,14 @@ module.exports = {
 	async execute(interaction) {
 
         await interaction.deferReply();
+        // For roll-back in case of errors
+        const t = await sequelize.transaction();
 
         try{
             const winner = interaction.options.getUser('1st_place')
+            const secondPlace = interaction.options.getString('2nd_place');
+            const thirdPlace = interaction.options.getString('3rd_place');
+            const fourthPlace = interaction.options.getString('4th_place');
 
             const extractUserIds = (mentionString) => {
                 if (!mentionString) return [];
@@ -29,9 +34,32 @@ module.exports = {
                 return ids;
             };
 
+            // Pre-validate the inputs before making any database queries
+            const validateMentions = (mentionString, placeName) => {
+                if (mentionString && extractUserIds(mentionString).length === 0) {
+                    return placeName;
+                }
+                return null;
+            };
+
+            const invalidPlace = validateMentions(secondPlace, '2nd_place') 
+                              || validateMentions(thirdPlace, '3rd_place') 
+                              || validateMentions(fourthPlace, '4th_place');
+
+            if (invalidPlace) {
+                // No rollback needed.
+                const errorEmbed = new EmbedBuilder()
+                    .setColor('#ec4454')
+                    .setTitle('Invalid Input')
+                    .setDescription(`The option **${invalidPlace}** does not contain any valid user mentions.`)
+                    .addFields({name: "Valid format example", value: "1st_place: @Player1 2nd_place: @Player2 @Player3 3rd_place: @Player4"});
+                return interaction.editReply({ embeds: [errorEmbed] });
+            }
+
             const [winnerPlayer] = await Player.findOrCreate({ 
                 where: { discordId: winner.id, serverId: interaction.guildId }, 
-                defaults: { username: winner.username, serverId: interaction.guildId } 
+                defaults: { username: winner.username, serverId: interaction.guildId },
+                transaction: t 
             });
 
             // Create JSON object array to keep track of Elo data
@@ -63,7 +91,8 @@ module.exports = {
 
                     const [loserPlayer] = await Player.findOrCreate({
                         where: { discordId: id, serverId: interaction.guildId },
-                        defaults: { username: user.username, serverId: interaction.guildId }
+                        defaults: { username: user.username, serverId: interaction.guildId },
+                        transaction: t 
                     });
 
                     loserPlayers.push(loserPlayer);
@@ -77,9 +106,9 @@ module.exports = {
                 }
             };
 
-            await processPlacement(interaction.options.getString('2nd_place'), 2);
-            await processPlacement(interaction.options.getString('3rd_place'), 3);
-            await processPlacement(interaction.options.getString('4th_place'), 4);
+            await processPlacement(secondPlace, 2);
+            await processPlacement(thirdPlace, 3);
+            await processPlacement(fourthPlace, 4);
 
             // Determine match type 
             let matchType;
@@ -91,23 +120,31 @@ module.exports = {
             } else if (totalPlayers >= 4) {
                 matchType = '4p';
             } else {
-                return interaction.editReply('At least 2 players are needed for a match.');
+                await t.rollback();
+                const errorEmbed = new EmbedBuilder()
+                    .setColor('#ec4454')
+                    .setTitle('Not Enough Players')
+                    .setDescription('At least 2 players are needed for a match.')
+                    .addFields({name: "Valid format example", value: "1st_place: @Player1 2nd_place: @Player2 @Player3 3rd_place: @Player4"});
+                return interaction.editReply({ embeds: [errorEmbed] });
             }
 
             // Calculate Elo changes
             eloData = calculateElo(eloData);
 
             // Update stats
-            await winnerPlayer.increment(['matchesPlayedTotal', 'matchesWonTotal', `matchesPlayed${matchType}`, `matchesWon${matchType}`]);
+            await winnerPlayer.increment(['matchesPlayedTotal', 'matchesWonTotal', `matchesPlayed${matchType}`, `matchesWon${matchType}`],
+                {transaction: t}
+            );
             
             for (const loserPlayer of loserPlayers) {
-                await loserPlayer.increment(['matchesPlayedTotal', `matchesPlayed${matchType}`]);
+                await loserPlayer.increment(['matchesPlayedTotal', `matchesPlayed${matchType}`], {transaction: t});
             }
 
             // Reload players to get updated stats from the database
-            await winnerPlayer.reload();
+            await winnerPlayer.reload({transaction: t});
             for (const loserPlayer of loserPlayers) {
-                await loserPlayer.reload();
+                await loserPlayer.reload({transaction: t});
             }
             
             // Update currentElo, streaks, bestElo and worstElo
@@ -129,14 +166,14 @@ module.exports = {
                     if (player.currentLossStreak > player.maxLossStreak) player.maxLossStreak = player.currentLossStreak;
                 }
                 
-                await player.save();
+                await player.save({transaction: t});
             }
         
             const match = await Match.create({
                 winnerId: winnerPlayer.id,
                 matchType: matchType,
                 serverId: interaction.guildId
-            });
+            }, {transaction: t});
             
             // Insert into UserMatch junction table
             for (const eloRecord of eloData) {
@@ -145,9 +182,13 @@ module.exports = {
                         serverId: interaction.guildId,
                         eloBefore: eloRecord.eloPre,
                         eloAfter: eloRecord.eloPost
-                    }
+                    },
+                    transaction: t
                 });
             }
+
+            // No DB errors. Push the changes to DB
+            await t.commit();
 
             // Create the message using the Elo data JSON object
             let message = '';
@@ -169,8 +210,15 @@ module.exports = {
             await interaction.editReply({ embeds: [embed] });
 
         } catch (error) {
+            //Rollback DB changes
+            await t.rollback();
+            
             console.error('Error recording match:', error);
-            await interaction.editReply('There was an error while trying to record the match.');
+            const errorEmbed = new EmbedBuilder()
+                .setColor('#ec4454')
+                .setTitle('Error')
+                .setDescription('There was an error while trying to record the match.');
+            await interaction.editReply({ content: null, embeds: [errorEmbed] });
         }
 	},
 };

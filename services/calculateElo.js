@@ -2,7 +2,7 @@ function calculateElo(players) {
     /* 
     Implementation based on: https://github.com/FigBug/Multiplayer-ELO/blob/master/javascript/elo.js
 
-    This function takes an array of "player" objects with, their Elo and their placement,
+    This function takes an array of "player" JSON objects with their Elo and their placement,
     and returns it with the updated rating.
     */
 

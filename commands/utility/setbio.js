@@ -30,7 +30,7 @@ module.exports = {
 			player.bio = newBio;
 			await player.save();
 
-			return interaction.reply({ content: 'Your bio has been updated successfully!', flags: MessageFlags.Ephemeral });
+			return interaction.reply({ content: `Your bio has been updated successfully to: **${newBio}**`, flags: MessageFlags.Ephemeral });
 		} catch (error) {
 			console.error('Error updating bio:', error);
 			return interaction.reply({ content: 'There was an error while updating your bio.', flags: MessageFlags.Ephemeral  });

@@ -81,10 +81,14 @@ module.exports = {
             if (matches && matches.length > 0) {
                 matches.forEach((match) => {
                     const isWinner = match.winnerId === player.id;
-                    const result = isWinner ? '🥇 **Won**' : '☠️ **Lost**';
-                    const opponents = match.Players.filter(p => p.discordId !== player.discordId).map(p => `${escapeMarkdown(p.username)}`);
-                    const opponentsText = opponents.length > 0 ? `vs ${opponents.join(', ')}` : 'vs Unknown';
-                    recentMatchesText += `${result} ${opponentsText}\n`;
+                    const result = isWinner ? '🥇 **Won**' : '❌ **Lost**';
+                    // Removed displayed opponents in favor of a more simple display.
+                    // const opponents = match.Players.filter(p => p.discordId !== player.discordId).map(p => `${escapeMarkdown(p.username)}`);
+                    // const opponentsText = opponents.length > 0 ? `vs ${opponents.join(', ')}` : 'vs Unknown';
+
+                    // Format date using Discord relative timestamp
+				    const dateString = `<t:${Math.floor(match.date.getTime() / 1000)}:d>`; 
+                    recentMatchesText += `${result} on ${dateString}\n`;
                 });
             } else {
                 recentMatchesText = 'No recent matches.';
@@ -131,7 +135,7 @@ module.exports = {
 	            )   
                 .addFields(
                 { name: 'Win Streak', value: `🔥 Current: ${player.currentWinStreak}\n🏆 Best: ${player.maxWinStreak}\n`, inline: true},
-                { name: 'Loss Streak', value: `🧊 Current: ${player.currentLossStreak}\n❌ Worst: ${player.maxLossStreak}\n`, inline: true},
+                { name: 'Loss Streak', value: `❄️ Current: ${player.currentLossStreak}\n🧊 Worst: ${player.maxLossStreak}\n`, inline: true},
 	            )            
 
             if(leaderboardRanking === 0){

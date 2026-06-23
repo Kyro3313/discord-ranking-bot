@@ -28,10 +28,6 @@ const UserMatch = sequelize.define('UserMatch', {
   eloAfter: {
     type: DataTypes.INTEGER,
     allowNull: true
-  },
-  placement: {
-    type: DataTypes.INTEGER,
-    allowNull: true
   }
 }, { 
   timestamps: false

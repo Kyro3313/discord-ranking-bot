@@ -30,7 +30,7 @@ module.exports = {
 			player.username = newUsername;
 			await player.save();
 
-			return interaction.reply({ content: 'Your username has been updated successfully!', flags: MessageFlags.Ephemeral });
+			return interaction.reply({ content: `Your username has been updated successfully to: **${newUsername}**`, flags: MessageFlags.Ephemeral });
 		} catch (error) {
 			console.error('Error updating bio:', error);
 			return interaction.reply({ content: 'There was an error while updating your username.', flags: MessageFlags.Ephemeral  });
