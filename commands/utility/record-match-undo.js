@@ -74,7 +74,7 @@ module.exports = {
                 where: { serverId: interaction.guildId },
                 include: [{
                     model: Player,
-                    through: { attributes: ['eloBefore', 'eloAfter'] },
+                    through: { attributes: ['eloBefore', 'eloAfter', 'placement'] },
                     attributes: ['id', 'discordId', 'username']
                 }],
                 order: [['date', 'DESC'], ['id', 'DESC']],
@@ -141,9 +141,23 @@ module.exports = {
             const message = lastMatch.Players.map(player => {
                 // EloAfter and EloBefore are swapped due to the undo.
                 const userMatch = player.UserMatch;
+                let placement = '';
+                console.log(`UserMatch for player ${player.username}: placement=${userMatch.placement}, eloBefore=${userMatch.eloBefore}, eloAfter=${userMatch.eloAfter}`);
+                switch (userMatch.placement) {
+                    case 1:
+                        placement = '🥇';
+                        break;
+                    case 2:
+                        placement = '🥈';
+                        break;
+                    case 3:
+                        placement = '🥉';
+                        break;
+                    default:
+                        placement = '❌';
+                }
                 const sign = userMatch.eloBefore - userMatch.eloAfter > 0 ? '+' : '';
-                console.log(`Player ${player.username} Elo Before: ${userMatch.eloBefore}, Elo After: ${userMatch.eloAfter}, Change: ${sign}${userMatch.eloAfter - userMatch.eloBefore}`);
-                return `**${escapeMarkdown(player.username)}**: ${userMatch.eloAfter} → ${userMatch.eloBefore} (${sign}${userMatch.eloBefore - userMatch.eloAfter})`;
+                return `**${placement} ${escapeMarkdown(player.username)}**: ${userMatch.eloAfter} → ${userMatch.eloBefore} (${sign}${userMatch.eloBefore - userMatch.eloAfter})`;
             }).join('\n');
 
 

@@ -117,7 +117,7 @@ module.exports = {
                 matchType = '2p';
             } else if (totalPlayers === 3) {
                 matchType = '3p';
-            } else if (totalPlayers >= 4) {
+            } else if (totalPlayers === 4) {
                 matchType = '4p';
             } else {
                 await t.rollback();
@@ -181,7 +181,8 @@ module.exports = {
                     through: {
                         serverId: interaction.guildId,
                         eloBefore: eloRecord.eloPre,
-                        eloAfter: eloRecord.eloPost
+                        eloAfter: eloRecord.eloPost,
+                        placement: eloRecord.place
                     },
                     transaction: t
                 });

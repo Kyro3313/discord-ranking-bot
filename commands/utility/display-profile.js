@@ -72,22 +72,35 @@ module.exports = {
             const matches = await player.getMatches({
                 order: [['date', 'DESC']],
                 limit: 4,
-                include: [
-                    { model: Player } 
-                ]
+                through: {
+                    attributes: ['placement']
+                }
             });
 
             let recentMatchesText = '';
             if (matches && matches.length > 0) {
                 matches.forEach((match) => {
-                    const isWinner = match.winnerId === player.id;
-                    const result = isWinner ? '🥇 **Won**' : '❌ **Lost**';
+                    let result = '';
+                    switch (match.UserMatch.placement) {
+                        case 1:
+                            result = '🥇 **Won**';
+                            break;
+                        case 2:
+                            result = '🥈 **Lost**';
+                            break;
+                        case 3:
+                            result = '🥉 **Lost**';
+                            break;
+                        default:
+                            result = '❌ **Lost**';
+                    }
+
                     // Removed displayed opponents in favor of a more simple display.
                     // const opponents = match.Players.filter(p => p.discordId !== player.discordId).map(p => `${escapeMarkdown(p.username)}`);
                     // const opponentsText = opponents.length > 0 ? `vs ${opponents.join(', ')}` : 'vs Unknown';
 
                     // Format date using Discord relative timestamp
-				    const dateString = `<t:${Math.floor(match.date.getTime() / 1000)}:d>`; 
+				    const dateString = `<t:${Math.floor(match.date.getTime() / 1000)}:R>`; 
                     recentMatchesText += `${result} on ${dateString}\n`;
                 });
             } else {
@@ -116,6 +129,13 @@ module.exports = {
                 }
             });
 
+            // TODO Add Chart with quickchart.io
+            const chartConfig = {
+                "type": "line",
+            }
+
+            const chartUrl = `https://quickchart.io/chart?c=${encodeURIComponent(JSON.stringify(chartConfig))}`;
+
             const playerEmbed = new EmbedBuilder()
                 .setTitle(`${leaderboardRankingDisplayed} ${escapeMarkdown(player.username)}`)
                 .setColor(embedColor)
@@ -127,16 +147,17 @@ module.exports = {
                 { name: 'Max/Min Elo', value: `Peak: ${player.bestElo}\nLowest: ${player.worstElo}`, inline: true },
 	            )    
                 .addFields(
-                { name: 'Win Rate', value: `Total: ${player.getWinRate()}%\n2p: ${player.getWinRate('2p')}%\n3p: ${player.getWinRate('3p')}%\n4p: ${player.getWinRate('4p')}%`, inline: true },
+                { name: 'Win Rate', value: `**Total**: ${player.getWinRate()}%\n **2 Players**: ${player.getWinRate('2p')}%\n **3 Players**: ${player.getWinRate('3p')}%\n **4 Players**: ${player.getWinRate('4p')}%`, inline: true },
                 // Blank field for spacing
-                { name: '\u200b', value: '\u200b', inline: true },
+                // { name: '\u200b', value: '\u200b', inline: true },
                 { name: 'Recent Matches', value: recentMatchesText, inline: true },
 
 	            )   
                 .addFields(
-                { name: 'Win Streak', value: `🔥 Current: ${player.currentWinStreak}\n🏆 Best: ${player.maxWinStreak}\n`, inline: true},
+                { name: 'Win Streak', value: `🔥 Current: ${player.currentWinStreak}\n🏆 Best: ${player.maxWinStreak}\n`, inline: false},
                 { name: 'Loss Streak', value: `❄️ Current: ${player.currentLossStreak}\n🧊 Worst: ${player.maxLossStreak}\n`, inline: true},
-	            )            
+	            )
+                .setImage(chartUrl)   
 
             if(leaderboardRanking === 0){
                 playerEmbed.setFooter({text: `You are \`unranked\`.\n Play ${10 - player.matchesPlayedTotal} more matches to appear in the leaderboard.`})
