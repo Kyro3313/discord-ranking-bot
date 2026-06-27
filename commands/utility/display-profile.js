@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder, escapeMarkdown } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, escapeMarkdown, AttachmentBuilder } = require('discord.js');
 const { Player, Match } = require('../../dbObjects.js');
 const { Op } = require('sequelize');
 
@@ -101,40 +101,95 @@ module.exports = {
 
                     // Format date using Discord relative timestamp
 				    const dateString = `<t:${Math.floor(match.date.getTime() / 1000)}:R>`; 
-                    recentMatchesText += `${result} on ${dateString}\n`;
+                    recentMatchesText += `${result} ${dateString}\n`;
                 });
             } else {
                 recentMatchesText = 'No recent matches.';
             }
 
-            // Calculate streaks
+            // Get data for the chart
             const allMatches = await player.getMatches({
-                order: [['date', 'ASC']]
-            });
-
-            let currentWinStreak = 0;
-            let maxWinStreak = 0;
-            let currentLossStreak = 0;
-            let maxLossStreak = 0;
-
-            allMatches.forEach(match => {
-                if (match.winnerId === player.id) {
-                    currentWinStreak++;
-                    currentLossStreak = 0;
-                    if (currentWinStreak > maxWinStreak) maxWinStreak = currentWinStreak;
-                } else {
-                    currentLossStreak++;
-                    currentWinStreak = 0;
-                    if (currentLossStreak > maxLossStreak) maxLossStreak = currentLossStreak;
+                order: [['date', 'ASC']],
+                through: {
+                    attributes: ['eloAfter']
                 }
             });
 
-            // TODO Add Chart with quickchart.io
-            const chartConfig = {
-                "type": "line",
+            let xLabels = ["Start"];
+            // The Starting Elo is always the same
+            let yData = [1500];
+            for (let i = 0; i < allMatches.length; i++) {
+                const match = allMatches[i];
+                yData.push(match.UserMatch.eloAfter)
+                xLabels.push(String(i + 1))
             }
 
-            const chartUrl = `https://quickchart.io/chart?c=${encodeURIComponent(JSON.stringify(chartConfig))}`;
+            // Chart with quickchart.io
+            const chart = {
+                "type": "line",
+                "data": {
+                    "labels": xLabels,
+                    "datasets": [
+                    {
+                        "data": yData,
+                        "fill": false,
+                        "borderColor": "rgb(194, 182, 120)",
+                        "backgroundColor": "rgba(0, 0, 0, 0)",
+                        "pointRadius": 3,
+                        "tension": 0.3
+                    }
+                    ]
+                },
+                "options": {
+                    "plugins": {
+                    "title": {
+                        "display": true,
+                        "text": "Simple Line Graph",
+                        "font": { "size": 18 }
+                    },
+                    },
+                    "legend": {
+                    "display": false,
+                    },
+                    "scales":{
+                    "xAxes":[
+                        {
+                        "scaleLabel":{"display":false,"labelString":"Match+Progression","fontColor":"white"},
+                        "gridLines":{"color":"rgba(255,255,255,0.1)"},
+                        "ticks":{"fontColor":"rgba(255,255,255,0.7)"}
+                        }],
+                    "yAxes":[
+                        { 
+                        "scaleLabel":{"display":true,"labelString":"Elo Rating","fontColor":"white"},    
+                        "ticks":{"suggestedMin":(Math.round(player.worstElo / 50) * 50),"suggestedMax":(Math.round(player.worstElo / 50) * 50),"fontColor":"rgba(255,255,255,0.7)","stepSize":25},
+                        "gridLines":{"color":"rgba(255,255,255,0.1)"}
+                        }
+                        ]
+                    },
+                },
+                    "responsive": true,
+                    "maintainAspectRatio": false
+            }
+
+            const chartResponse = await fetch('https://quickchart.io/chart', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    chart,
+                    width: 800,
+                    height: 400,
+                    backgroundColor: 'transparent'
+                })
+            });
+
+            if (!chartResponse.ok) {
+                throw new Error(`QuickChart request failed: ${chartResponse.status} ${chartResponse.statusText}`);
+            }
+
+            const chartBuffer = Buffer.from(await chartResponse.arrayBuffer());
+            const chartAttachment = new AttachmentBuilder(chartBuffer, { name: 'elo-chart.png' });
 
             const playerEmbed = new EmbedBuilder()
                 .setTitle(`${leaderboardRankingDisplayed} ${escapeMarkdown(player.username)}`)
@@ -157,13 +212,13 @@ module.exports = {
                 { name: 'Win Streak', value: `🔥 Current: ${player.currentWinStreak}\n🏆 Best: ${player.maxWinStreak}\n`, inline: false},
                 { name: 'Loss Streak', value: `❄️ Current: ${player.currentLossStreak}\n🧊 Worst: ${player.maxLossStreak}\n`, inline: true},
 	            )
-                .setImage(chartUrl)   
+                .setImage('attachment://elo-chart.png');
 
             if(leaderboardRanking === 0){
                 playerEmbed.setFooter({text: `You are \`unranked\`.\n Play ${10 - player.matchesPlayedTotal} more matches to appear in the leaderboard.`})
             }
 
-            await interaction.editReply({ embeds: [playerEmbed] });
+            await interaction.editReply({ embeds: [playerEmbed], files: [chartAttachment] });
         } catch (error) {
             console.error('Error fetching player data:', error);
             await interaction.editReply('There was an error while executing this command.');
