@@ -1,68 +1,137 @@
-const { SlashCommandBuilder, EmbedBuilder, escapeMarkdown } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, escapeMarkdown, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { Player, Match } = require('../../dbObjects.js');
+
+function formatPlacement(placement) {
+	switch (placement) {
+		case 1:
+			return '🥇';
+		case 2:
+			return '🥈';
+		case 3:
+			return '🥉';
+		default:
+			return '❌';
+	}
+}
+
+function formatEloChange(eloBefore, eloAfter) {
+	if (eloBefore == null || eloAfter == null) {
+		return '—';
+	}
+
+	const change = eloAfter - eloBefore;
+	return `${change >= 0 ? '+' : ''}${change}`;
+}
+
+function formatMatchEntry(match, matchNumber) {
+	const dateString = `<t:${Math.floor(match.date.getTime() / 1000)}:R>`;
+	const playersText = match.Players.map((player) => {
+		const userMatch = player.UserMatch;
+		const placement = formatPlacement(userMatch?.placement);
+		const eloBefore = userMatch?.eloBefore ?? '?';
+		const eloAfter = userMatch?.eloAfter ?? '?';
+		const eloChange = formatEloChange(userMatch?.eloBefore, userMatch?.eloAfter);
+
+		return `${placement} **${escapeMarkdown(player.username)}**: ${eloBefore} → ${eloAfter} (${eloChange})`;
+	}).join('\n');
+
+	return `## Match ${matchNumber} (${match.matchType}): ${dateString}\n ${playersText}`;
+}
+
+function createEmbed(page, totalPages, pages, pageSize) {
+	const pageEntries = pages[page] || [];
+	const description = pageEntries.length > 0
+		? pageEntries.map((entry, index) => `${entry}`).join('\n')
+		: 'No matches recorded for this view.';
+
+	return new EmbedBuilder()
+		.setTitle('Complete Match History')
+		.setColor('#5965ee')
+		.setDescription(description)
+		.setFooter({
+			text: `Page ${page + 1}/${totalPages}`
+		});
+}
+
+function createButtons(page, totalPages) {
+	return new ActionRowBuilder().addComponents(
+		new ButtonBuilder()
+			.setCustomId(`match-history:first:${0}`)
+			.setLabel('First')
+			.setStyle(ButtonStyle.Secondary)
+			.setDisabled(page === 0),
+		new ButtonBuilder()
+			.setCustomId(`match-history:previous:${page}`)
+			.setLabel('⬅ Previous')
+			.setStyle(ButtonStyle.Secondary)
+			.setDisabled(page === 0),
+		new ButtonBuilder()
+			.setCustomId(`match-history:next:${page}`)
+			.setLabel('Next ➡')
+			.setStyle(ButtonStyle.Secondary)
+			.setDisabled(page === totalPages - 1),
+		new ButtonBuilder()
+			.setCustomId(`match-history:last:${totalPages}`)
+			.setLabel('Last')
+			.setStyle(ButtonStyle.Secondary)
+			.setDisabled(page === totalPages - 1),
+	);
+}
 
 module.exports = {
 	data: new SlashCommandBuilder()
 		.setName('match-history')
-		.setDescription('Display your last 10 played matches.'),
+		.setDescription('Display all played matches in this server.'),
 
 	async execute(interaction) {
 		await interaction.deferReply();
 
 		try {
-			const user = interaction.options.getUser('user') || interaction.user;
-			
-			const player = await Player.findOne({ where: { discordId: user.id, serverId: interaction.guildId } });
 
-			if (!player) {
-				return interaction.editReply(`${escapeMarkdown(user.username)} has never played any matches!`);
-			}
+			const pageSize = 5;
 
-			// Get the last 10 matches for this player
-			const matches = await player.getMatches({
+			let	matches = await Match.findAll({
 				order: [['date', 'DESC']],
-				limit: 10,
-				include: [
-					{ model: Player, as: 'Winner' },
-					{ model: Player } 
-				]
+				include: [{
+					model: Player,
+					where: { serverId: interaction.guildId },
+					attributes: ['id', 'username', 'discordId'],
+					through: {
+						attributes: ['eloBefore', 'eloAfter', 'placement']
+					}
+				}]
 			});
+			
 
 			if (!matches || matches.length === 0) {
-				return interaction.editReply(`${escapeMarkdown(user.username)} has no recorded matches.`);
+				return interaction.editReply('No matches have been recorded yet.');
 			}
 
-			let historyText = '';
-            let winCount = 0;
-			matches.forEach((match, index) => {
-				const isWinner = match.winnerId === player.id;
-				const result = isWinner ? '🥇 **Won**' : '☠️ **Lost**';
-                
-                if(isWinner){
-                    winCount++;
-                }
-				
-				const opponents = match.Players.filter(p => p.discordId !== player.discordId).map(p => `**${escapeMarkdown(p.username)}**`);
-				const opponentsText = opponents.length > 0 ? `vs ${opponents.join(', ')}` : 'vs Unknown';
-
-				// Format date using Discord relative timestamp
-				const dateString = `<t:${Math.floor(match.date.getTime() / 1000)}:d>`; 
-
-				historyText += `**${index + 1}.** ${result} ${opponentsText} (${match.matchType}) - ${dateString}\n`;
+			// TODO: Is there a batter way to do this?
+			const formattedMatches = matches.map((match, index) => {
+				const matchNumber = matches.length - index;
+				return formatMatchEntry(match, matchNumber);
 			});
 
-            const embed = new EmbedBuilder()
-				.setTitle(`${escapeMarkdown(player.username)}'s Match History`)
-				.setColor('#5965ee')
-                .setDescription(historyText)
-				.setThumbnail(user.displayAvatarURL())
-                .setFooter({ text: `You won ${Math.round(winCount / 10 * 100)}% your last 10 matches` });
+			const pages = [];
 
-			await interaction.editReply({ embeds: [embed] });
+			for (let i = 0; i < formattedMatches.length; i += pageSize) {
+				pages.push(formattedMatches.slice(i, i + pageSize));
+			}
 
+			const currentPage = 0;
+			const reply = await interaction.editReply({
+				embeds: [createEmbed(currentPage, pages.length, pages, pageSize)],
+				components: [createButtons(currentPage, pages.length)]
+			});
+
+			interaction.client.matchHistoryPages ??= new Map();
+			interaction.client.matchHistoryPages.set(reply.id, { pages, pageSize });
+
+			return reply;
 		} catch (error) {
 			console.error('Error fetching match history:', error);
-			await interaction.editReply('There was an error while trying to fetch your match history.');
+			await interaction.editReply('There was an error while trying to fetch match history.');
 		}
 	},
 };

@@ -124,7 +124,7 @@ module.exports = {
                 const errorEmbed = new EmbedBuilder()
                     .setColor('#ec4454')
                     .setTitle('Not Enough Players')
-                    .setDescription('At least 2 players are needed for a match.')
+                    .setDescription('Matches must have at least 2 players and at most 4 players.')
                     .addFields({name: "Valid format example", value: "1st_place: @Player1 2nd_place: @Player2 @Player3 3rd_place: @Player4"});
                 return interaction.editReply({ embeds: [errorEmbed] });
             }

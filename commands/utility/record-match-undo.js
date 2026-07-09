@@ -142,7 +142,6 @@ module.exports = {
                 // EloAfter and EloBefore are swapped due to the undo.
                 const userMatch = player.UserMatch;
                 let placement = '';
-                console.log(`UserMatch for player ${player.username}: placement=${userMatch.placement}, eloBefore=${userMatch.eloBefore}, eloAfter=${userMatch.eloAfter}`);
                 switch (userMatch.placement) {
                     case 1:
                         placement = '🥇';

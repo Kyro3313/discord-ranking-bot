@@ -1,8 +1,83 @@
-const { Events,Collection, MessageFlags } = require('discord.js');
+const { Events, Collection, MessageFlags, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+
+function buildHistoryEmbed(page, totalPages, pages) {
+	const pageEntries = pages[page] || [];
+	const description = pageEntries.length > 0
+		? pageEntries.join('\n')
+		: 'No matches recorded for this view.';
+
+	return new EmbedBuilder()
+		.setTitle('Complete Match History')
+		.setColor('#5965ee')
+		.setDescription(description)
+		.setFooter({ text: `Page ${page + 1}/${totalPages}` });
+}
+
+function buildHistoryButtons(page, totalPages) {
+	return new ActionRowBuilder().addComponents(
+		new ButtonBuilder()
+			.setCustomId(`match-history:first:${0}`)
+			.setLabel('First')
+			.setStyle(ButtonStyle.Secondary)
+			.setDisabled(page === 0),
+		new ButtonBuilder()
+			.setCustomId(`match-history:previous:${page}`)
+			.setLabel('⬅ Previous')
+			.setStyle(ButtonStyle.Secondary)
+			.setDisabled(page === 0),
+		new ButtonBuilder()
+			.setCustomId(`match-history:next:${page}`)
+			.setLabel('Next ➡')
+			.setStyle(ButtonStyle.Secondary)
+			.setDisabled(page === totalPages - 1),
+		new ButtonBuilder()
+			.setCustomId(`match-history:last:${totalPages}`)
+			.setLabel('Last')
+			.setStyle(ButtonStyle.Secondary)
+			.setDisabled(page === totalPages - 1),
+	);
+}
 
 module.exports = {
 	name: Events.InteractionCreate,
 	async execute(interaction) {
+		if (interaction.isButton() && interaction.customId.startsWith('match-history:')) {
+			const [_, action, pageValue] = interaction.customId.split(':');
+			const currentPage = Number(pageValue || 0);
+			const historyState = interaction.client.matchHistoryPages?.get(interaction.message?.id);
+
+			if (!historyState) {
+				return interaction.reply({
+					content: 'This match history message is no longer available. Please run the `/match-history` command again.',
+					flags: MessageFlags.Ephemeral,
+				});
+			}
+
+			const targetPage = action === 'next'
+				? Math.min(currentPage + 1, historyState.pages.length - 1)
+				: Math.max(currentPage - 1, 0);
+
+			await interaction.update({
+				embeds: [buildHistoryEmbed(targetPage, historyState.pages.length, historyState.pages)],
+				components: [buildHistoryButtons(targetPage, historyState.pages.length)]
+			});
+			return;
+		}
+
+		// Update Match-History when a new match is recorded
+		// if (interaction.isChatInputCommand() && interaction.commandName === 'record-match') {
+		// 	const historyState = interaction.client.matchHistoryPages?.get(interaction.message?.id);
+		// 	if (!historyState) {
+		// 		console.log('No match history state found to update.');
+		// 	}
+
+		// 	await interaction.update({
+		// 		embeds: [buildHistoryEmbed(0, historyState.pages.length, historyState.pages)],
+		// 		components: [buildHistoryButtons(0, historyState.pages.length)]
+		// 	});
+
+		// }
+
 		if (!interaction.isChatInputCommand()) return;
 
 		const command = interaction.client.commands.get(interaction.commandName);
